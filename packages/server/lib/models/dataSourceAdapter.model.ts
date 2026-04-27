@@ -217,7 +217,7 @@ export abstract class DataSourceAdapter {
    * Get the search builder that will apply the search query
    * @returns The search builder
    */
-  abstract getSearchBuilder(searchableColumns: string[], searchValue: string): (builder: Knex.QueryBuilder) => void;
+  abstract getSearchBuilder(searchableColumns: string[], searchValue: string, tableSchema: RelationalDatabaseSchemaTable): (builder: Knex.QueryBuilder) => void;
 
   /**
    * Apply the filters to the query
@@ -402,8 +402,8 @@ export abstract class DataSourceAdapter {
     if (input.search) {
       const searchValue = input.search.trim();
       if (tablePageProcessedConfig.searchableColumns?.length > 0) {
-        query.where(this.getSearchBuilder(tablePageProcessedConfig.searchableColumns, searchValue));
-        countQuery?.where(this.getSearchBuilder(tablePageProcessedConfig.searchableColumns, searchValue));
+        query.where(this.getSearchBuilder(tablePageProcessedConfig.searchableColumns, searchValue, tableSchema as RelationalDatabaseSchemaTable));
+        countQuery.where(this.getSearchBuilder(tablePageProcessedConfig.searchableColumns, searchValue, tableSchema as RelationalDatabaseSchemaTable));
       }
     }
 
