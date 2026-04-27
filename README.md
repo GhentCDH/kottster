@@ -1,3 +1,6 @@
+**IMPORTANT**: main branch tracks upstream. dev is our integration branch with patches applied.
+
+
 <div align="center" style="border-bottom: none">
     <a href="https://kottster.app"><picture>
         <source media="(prefers-color-scheme: dark)" srcset="https://kottster.app/_next/image?url=%2Flogoline-white.png&w=256&q=75">
