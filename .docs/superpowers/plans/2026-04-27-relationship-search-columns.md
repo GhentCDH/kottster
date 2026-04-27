@@ -230,41 +230,18 @@ Expected: 4–5 tests FAIL. The error will be something like `expect(received).t
 
 ---
 
-## Task 3: Fix `KnexBetterSqlite3.getSearchBuilder` for dot-qualified column references
+## Task 3: ~~Fix `KnexBetterSqlite3.getSearchBuilder`~~ — already done
 
-**Files:**
-- Modify: `packages/server/lib/adapters/knex/knexBetterSqlite3.ts`
+> **This task is complete.** The fix was applied on branch `fix/sqlite-search-qualified-column-refs`
+> (commit `a5fbcf9`) and cherry-picked into this branch (commit `065de0f`).
+> A separate PR from that branch to `main` (upstream) is pending.
+>
+> **Why the fix was needed:** `whereRaw('?? LIKE ?', [column])` treats the full value as a
+> single identifier, so `'alias.column'` becomes `"alias.column"` (one quoted name with a literal
+> dot) instead of `"alias"."column"`. Qualified references now use `where(column, 'like', ...)`,
+> which Knex correctly splits on the dot and quotes each segment separately.
 
-**Why:** The existing implementation uses `whereRaw('?? LIKE ?', [column, ...])`. Knex's `??` binding wraps the entire value as a single identifier — so `'plaats_via_plaats_id.naam'` becomes `"plaats_via_plaats_id.naam"` (one quoted name with a literal dot) instead of `"plaats_via_plaats_id"."naam"`. Knex's `where(column, operator, value)` API correctly splits on `.` and quotes each segment separately.
-
-- [ ] **Step 1: Replace `getSearchBuilder` in `knexBetterSqlite3.ts`**
-
-Find the existing `getSearchBuilder` method and replace it entirely:
-
-```typescript
-  getSearchBuilder(searchableColumns: string[], searchValue: string) {
-    return (builder: Knex.QueryBuilder) => {
-      searchableColumns.forEach((column, index) => {
-        if (index === 0) {
-          if (column.includes('.')) {
-            // Qualified reference (e.g. alias.column) — where() correctly handles dot notation
-            builder.where(column, 'like', `%${searchValue}%`);
-          } else {
-            builder.whereRaw('?? LIKE ? COLLATE NOCASE', [column, `%${searchValue}%`]);
-          }
-        } else {
-          if (column.includes('.')) {
-            builder.orWhere(column, 'like', `%${searchValue}%`);
-          } else {
-            builder.orWhereRaw('?? LIKE ? COLLATE NOCASE', [column, `%${searchValue}%`]);
-          }
-        }
-      });
-    };
-  }
-```
-
-Note: `LIKE` in SQLite is already case-insensitive for ASCII by default, so using `where(..., 'like', ...)` for qualified columns produces equivalent behaviour to `LIKE ... COLLATE NOCASE` for the character sets involved in typical column values.
+- [x] **Applied via cherry-pick** — no further action needed in this branch.
 
 ---
 
