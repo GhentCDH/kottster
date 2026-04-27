@@ -130,9 +130,20 @@ export class KnexBetterSqlite3 extends DataSourceAdapter {
     return (builder: Knex.QueryBuilder) => {
       searchableColumns.forEach((column, index) => {
         if (index === 0) {
-          builder.whereRaw('?? LIKE ? COLLATE NOCASE', [column, `%${searchValue}%`]);
+          // Qualified references (alias.column) must use where() so Knex splits on the dot
+          // and quotes each segment separately. whereRaw('??', ...) treats the full string
+          // as a single identifier, producing "alias.column" instead of "alias"."column".
+          if (column.includes('.')) {
+            builder.where(column, 'like', `%${searchValue}%`);
+          } else {
+            builder.whereRaw('?? LIKE ? COLLATE NOCASE', [column, `%${searchValue}%`]);
+          }
         } else {
-          builder.orWhereRaw('?? LIKE ? COLLATE NOCASE', [column, `%${searchValue}%`]);
+          if (column.includes('.')) {
+            builder.orWhere(column, 'like', `%${searchValue}%`);
+          } else {
+            builder.orWhereRaw('?? LIKE ? COLLATE NOCASE', [column, `%${searchValue}%`]);
+          }
         }
       });
     };
