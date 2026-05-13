@@ -700,10 +700,7 @@ export abstract class DataSourceAdapter {
           });
         }
 
-        linkedTableRecords[relationship.targetTable] = [
-          ...(linkedTableRecords[relationship.targetTable] || []),
-          ...foreignRecords,
-        ];
+        linkedTableRecords[column] = foreignRecords;
       }));
 
       // Add linked records to the records
@@ -719,7 +716,7 @@ export abstract class DataSourceAdapter {
             return;
           }
 
-          const linkedRecords = linkedTableRecords[relationship.targetTable];
+          const linkedRecords = linkedTableRecords[column];
           if (!record['_related']) {
             record['_related'] = {};
           }
