@@ -217,7 +217,43 @@ export abstract class DataSourceAdapter {
    * Get the search builder that will apply the search query
    * @returns The search builder
    */
-  abstract getSearchBuilder(searchableColumns: string[], searchValue: string, tableSchema: RelationalDatabaseSchemaTable): (builder: Knex.QueryBuilder) => void;
+  abstract applySearchCondition(
+      builder: Knex.QueryBuilder,
+      columnReference: string,
+      columnSchema: RelationalDatabaseSchemaColumn,
+      searchValue: string,
+      useAndOperator?: boolean,
+  ): void;
+
+  /**
+   * Create a search query builder function for the given searchable columns, search value, main table and database schema
+   *
+   * @param searchableColumns
+   * @param searchValue
+   * @param mainTable
+   * @param databaseSchema
+   */
+
+  createSearchBuilder(searchableColumns: string[], searchValue: string, mainTable: string, databaseSchema: RelationalDatabaseSchema) {
+
+    const getColumnSchema = (tableName: string, columnName: string): RelationalDatabaseSchemaColumn | undefined => {
+      return databaseSchema?.tables.find(t => t.name === tableName)?.columns.find(c => c.name === columnName);
+    }
+
+    return (builder: Knex.QueryBuilder) : void => {
+
+      builder.whereRaw('0 > 1');
+
+      // searchable columns of main table
+      searchableColumns.forEach((columnName) => {
+        const columnSchema = getColumnSchema(mainTable, columnName);
+        if (!columnSchema) return;
+
+        this.applySearchCondition(builder, `main.${columnName}`, columnSchema, searchValue, false);
+      });
+
+    }
+  }
 
   /**
    * Apply the filters to the query
