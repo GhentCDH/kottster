@@ -5,10 +5,19 @@ import { findNameLikeColumns } from "./findNameLikeColumns";
 import { getAllPossibleRelationships } from "./getAllPossibleRelationships";
 import { getLabelFromForeignKeyColumnName } from "./getLabelFromForeignKeyColumnName";
 import { transformToReadable } from "./transformToReadable";
+import {OneToOneRelationship} from "../models/relationship.model";
+
+export interface SearchableRelatedColumn {
+  column: string;
+  targetColumn: string;
+  targetTable: string;
+  targetForeignKeyColumn: string;
+}
 
 interface ReturnTypeFinalData extends TablePageConfig {
   selectableColumns: string[];
   searchableColumns: string[];
+  searchableRelatedColumns: SearchableRelatedColumn[];
   sortableColumns: string[];
   filterableColumns: string[];
   hiddenColumns: string[];
@@ -67,6 +76,7 @@ export function getTableData(params: {
       fetchStrategy: 'databaseTable',
       selectableColumns: [],
       searchableColumns: [],
+      searchableRelatedColumns: [],
       sortableColumns: [],
       filterableColumns: [],
       hiddenColumns: [],
@@ -114,6 +124,7 @@ export function getTableData(params: {
       position: column?.position ?? defaultColumnData.position,
       formFieldPosition: column?.formFieldPosition ?? defaultColumnData.formFieldPosition,
       relationshipPreviewColumns: column?.relationshipPreviewColumns ?? defaultColumnData.relationshipPreviewColumns,
+      relationshipSearchColumns: column?.relationshipSearchColumns,
       fieldInput: column?.fieldInput ?? defaultColumnData.fieldInput,
       fieldRequirement: column?.fieldRequirement ?? defaultColumnData.fieldRequirement,
       formFieldSpan: column?.formFieldSpan ?? defaultColumnData.formFieldSpan,
@@ -147,6 +158,29 @@ export function getTableData(params: {
   }) : tablePageConfig.linkedRecordsColumns;
   const hiddenLinkedRecordsColumns = linkedRecordsColumns?.filter(lrc => lrc.hiddenInTable).map(lrc => lrc.relationshipKey) ?? [];
 
+  // Searchable related columns
+  const searchableRelatedColumns: SearchableRelatedColumn[] = [];
+  columns?.forEach(col => {
+    if (!col.relationshipSearchColumns?.length) return;
+
+    const colRelationship = (relationships ?? [])
+        .find(r => r.relation === 'oneToOne' && (r as OneToOneRelationship).foreignKeyColumn === col.column) as OneToOneRelationship | undefined;
+
+    if (!colRelationship?.targetTable || !colRelationship?.targetTableKeyColumn) return;
+
+    const colRelationshipSchema = databaseSchema?.tables.find((t) => t.name === colRelationship.targetTable);
+    if (!colRelationshipSchema) return;
+
+    col.relationshipSearchColumns.forEach((searchCol: string) => {
+      searchableRelatedColumns.push({
+        column: col.column,
+        targetColumn: searchCol,
+        targetTable: colRelationship.targetTable!,
+        targetForeignKeyColumn: colRelationship.targetTableKeyColumn!
+      });
+    });
+  });
+
   return {
     tableSchema,
     tablePageProcessedConfig: {
@@ -160,6 +194,7 @@ export function getTableData(params: {
       
       selectableColumns,
       searchableColumns,
+      searchableRelatedColumns,
       sortableColumns,
       filterableColumns,
       hiddenColumns,
@@ -181,7 +216,7 @@ export function getTableData(params: {
       pageSize: tablePageConfig?.pageSize ?? defaultTablePageSize,
 
       defaultSortColumn: tablePageConfig?.defaultSortColumn ?? primaryKeyColumn,
-      defaultSortDirection: tablePageConfig?.defaultSortDirection ?? 'desc',
+      defaultSortDirection: tablePageConfig?.defaultSortDirection ?? 'asc',
 
       views: tablePageConfig?.views || [],
 
