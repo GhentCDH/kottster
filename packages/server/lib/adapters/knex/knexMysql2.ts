@@ -1,4 +1,4 @@
-import { DataSourceAdapterType, FilterItem, FilterItemOperator, FieldInput, isIsoString, JsType, MysqlBaseType, mysqlBaseTypesByContentHint, mysqlBaseTypeToJsType, RelationalDatabaseSchema, RelationalDatabaseSchemaColumn, removeTrailingZeros, ContentHint, RelationalDatabaseSchemaTable } from "@kottster/common";
+import { DataSourceAdapterType, FilterItem, FilterItemOperator, FieldInput, isIsoString, JsType, MysqlBaseType, mysqlBaseTypesByContentHint, mysqlBaseTypeToJsType, RelationalDatabaseSchema, RelationalDatabaseSchemaColumn, removeTrailingZeros, ContentHint } from "@kottster/common";
 import { DataSourceAdapter } from "../../models/dataSourceAdapter.model";
 import { Knex } from "knex";
 
