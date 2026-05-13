@@ -126,27 +126,26 @@ export class KnexBetterSqlite3 extends DataSourceAdapter {
     return value;
   }
 
-  getSearchBuilder(searchableColumns: string[], searchValue: string, tableSchema: RelationalDatabaseSchemaTable) {
-    return (builder: Knex.QueryBuilder) => {
-      searchableColumns.forEach((column, index) => {
-        if (index === 0) {
-          // Qualified references (alias.column) must use where() so Knex splits on the dot
-          // and quotes each segment separately. whereRaw('??', ...) treats the full string
-          // as a single identifier, producing "alias.column" instead of "alias"."column".
-          if (column.includes('.')) {
-            builder.where(column, 'like', `%${searchValue}%`);
-          } else {
-            builder.whereRaw('?? LIKE ? COLLATE NOCASE', [column, `%${searchValue}%`]);
-          }
-        } else {
-          if (column.includes('.')) {
-            builder.orWhere(column, 'like', `%${searchValue}%`);
-          } else {
-            builder.orWhereRaw('?? LIKE ? COLLATE NOCASE', [column, `%${searchValue}%`]);
-          }
-        }
-      });
-    };
+  applySearchCondition(
+      builder: Knex.QueryBuilder,
+      columnReference: string,
+      columnSchema: RelationalDatabaseSchemaColumn,
+      searchValue: string,
+      useAndOperator: boolean = false
+  ) {
+    if (columnReference.includes('.')) {
+      if (useAndOperator) {
+        builder.where(columnReference, 'like', `%${searchValue}%`);
+      } else {
+        builder.orWhere(columnReference, 'like', `%${searchValue}%`);
+      }
+    } else {
+      if (useAndOperator) {
+        builder.whereRaw('?? LIKE ? COLLATE NOCASE', [columnReference, `%${searchValue}%`]);
+      } else {
+        builder.orWhereRaw('?? LIKE ? COLLATE NOCASE', [columnReference, `%${searchValue}%`]);
+      }
+    }
   }
 
   applyFilterCondition(

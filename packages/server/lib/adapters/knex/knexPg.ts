@@ -144,36 +144,45 @@ export class KnexPg extends DataSourceAdapter {
     return value;
   }
 
-  getSearchBuilder(searchableColumns: string[], searchValue: string, tableSchema: RelationalDatabaseSchemaTable) {
-    return (builder: Knex.QueryBuilder) => {
-      builder.whereRaw('0 > 1');
-      searchableColumns.forEach((columnName) => {
-        const columnSchema = tableSchema.columns.find(c => c.name === columnName);
-        if (!columnSchema) return;
+  applySearchCondition(
+      builder: Knex.QueryBuilder,
+      columnReference: string,
+      columnSchema: RelationalDatabaseSchemaColumn,
+      searchValue: string,
+      useAndOperator: boolean = false
+  ) {
 
-        switch (columnSchema.contentHint) {
-          case ContentHint.string:
-            builder.orWhereILike(columnName, `%${searchValue}%`);
-            break;
-          case ContentHint.number:
-            {
-              const numberValue = parseFloat(searchValue);
-              if (!isNaN(numberValue)) {
-                builder.orWhere(columnName, '=', numberValue);
-              }
-            }
-            break;
-          case ContentHint.date:
-            {
-              const date = new Date(searchValue);
-              if (!isNaN(date.valueOf())) {
-                builder.orWhereRaw(`${columnName}::timestamp = ?::timestamp`, [date.toDateString()]);
-              }
-            }
-            break;
+    switch (columnSchema.contentHint) {
+      case ContentHint.string:
+        if (useAndOperator) {
+          builder.whereILike(columnReference, `%${searchValue}%`);
+        } else {
+          builder.orWhereILike(columnReference, `%${searchValue}%`);
         }
-      });
-    };
+        break;
+      case ContentHint.number: {
+        const numberValue = parseFloat(searchValue);
+        if (!isNaN(numberValue)) {
+          if (useAndOperator) {
+            builder.where(columnReference, '=', numberValue);
+          } else {
+            builder.orWhere(columnReference, '=', numberValue);
+          }
+        }
+        break;
+      }
+      case ContentHint.date: {
+        const date = new Date(searchValue);
+        if (!isNaN(date.valueOf())) {
+          if (useAndOperator) {
+            builder.whereRaw(`${columnReference}::timestamp = ?::timestamp`, [date.toDateString()]);
+          } else {
+            builder.orWhereRaw(`${columnReference}::timestamp = ?::timestamp`, [date.toDateString()]);
+          }
+        }
+        break;
+      }
+    }
   }
 
   applyFilterCondition(
