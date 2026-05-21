@@ -364,7 +364,7 @@ export class KottsterApp {
           return;
         }
 
-        const operation = this.exporter.getOperation(operationId);
+        const operation = this.exporter.getOperation(Array.isArray(operationId) ? operationId[0] : operationId);
         const dataSource = this.dataSources.find(ds => ds.name === operation?.dataSourceName);
         if (!operation || !dataSource) {
           res.status(404).json({ error: 'Not Found' });
