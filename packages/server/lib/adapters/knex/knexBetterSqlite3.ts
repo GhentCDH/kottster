@@ -1,4 +1,4 @@
-import { DataSourceAdapterType, FilterItem, FilterItemOperator, FieldInput, JsType, RelationalDatabaseSchema, RelationalDatabaseSchemaColumn, SqliteBaseType, sqliteBaseTypesByContentHint, sqliteBaseTypeToJsType, ContentHint, RelationalDatabaseSchemaTable } from "@kottster/common";
+import { DataSourceAdapterType, FilterItem, FilterItemOperator, FieldInput, JsType, RelationalDatabaseSchema, RelationalDatabaseSchemaColumn, SqliteBaseType, sqliteBaseTypesByContentHint, sqliteBaseTypeToJsType, ContentHint } from "@kottster/common";
 import { DataSourceAdapter } from "../../models/dataSourceAdapter.model";
 import { Knex } from "knex";
 
@@ -126,16 +126,26 @@ export class KnexBetterSqlite3 extends DataSourceAdapter {
     return value;
   }
 
-  getSearchBuilder(searchableColumns: string[], searchValue: string, tableSchema: RelationalDatabaseSchemaTable) {
-    return (builder: Knex.QueryBuilder) => {
-      searchableColumns.forEach((column, index) => {
-        if (index === 0) {
-          builder.whereRaw('?? LIKE ? COLLATE NOCASE', [column, `%${searchValue}%`]);
-        } else {
-          builder.orWhereRaw('?? LIKE ? COLLATE NOCASE', [column, `%${searchValue}%`]);
-        }
-      });
-    };
+  applySearchCondition(
+      builder: Knex.QueryBuilder,
+      columnReference: string,
+      columnSchema: RelationalDatabaseSchemaColumn,
+      searchValue: string,
+      useAndOperator: boolean = false
+  ) {
+    if (columnReference.includes('.')) {
+      if (useAndOperator) {
+        builder.where(columnReference, 'like', `%${searchValue}%`);
+      } else {
+        builder.orWhere(columnReference, 'like', `%${searchValue}%`);
+      }
+    } else {
+      if (useAndOperator) {
+        builder.whereRaw('?? LIKE ? COLLATE NOCASE', [columnReference, `%${searchValue}%`]);
+      } else {
+        builder.orWhereRaw('?? LIKE ? COLLATE NOCASE', [columnReference, `%${searchValue}%`]);
+      }
+    }
   }
 
   applyFilterCondition(

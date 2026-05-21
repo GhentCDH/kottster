@@ -1,5 +1,5 @@
 import { Knex } from "knex";
-import { DataSourceAdapterType, FieldInput, JsType, RelationalDatabaseSchema, RelationalDatabaseSchemaColumn, RelationalDatabaseSchemaTable, TablePageDeleteRecordInput, TablePageCreateRecordInput, TablePageGetRecordsInput, TablePageUpdateRecordInput, TablePageCreateRecordResult, TablePageGetRecordsResult, TablePageRecord, TablePageUpdateRecordResult, TablePageRecordRelated, defaultTablePageSize, TablePageGetRecordInput, TablePageGetRecordResult, DataSourceTablesConfig, getTableData, TablePageConfig, FilterItem, OneToOneRelationship, OneToManyRelationship, Stage, DataSource, DashboardPageGetStatDataInput, DashboardPageGetStatDataResult, DashboardPageConfigStat, DashboardPageConfigCard, DashboardPageGetCardDataResult, DashboardPageGetCardDataInput, getNestedTablePageConfigByTablePageNestedTableKey, findNameLikeColumns, getNestedTablePageConfigByTablePageNestedTableKeyAndVerify } from "@kottster/common";
+import { DataSourceAdapterType, FieldInput, JsType, RelationalDatabaseSchema, RelationalDatabaseSchemaColumn, RelationalDatabaseSchemaTable, TablePageDeleteRecordInput, TablePageCreateRecordInput, TablePageGetRecordsInput, TablePageUpdateRecordInput, TablePageCreateRecordResult, TablePageGetRecordsResult, TablePageRecord, TablePageUpdateRecordResult, TablePageRecordRelated, defaultTablePageSize, TablePageGetRecordInput, TablePageGetRecordResult, DataSourceTablesConfig, getTableData, TablePageConfig, FilterItem, OneToOneRelationship, OneToManyRelationship, Stage, DataSource, DashboardPageGetStatDataInput, DashboardPageGetStatDataResult, DashboardPageConfigStat, DashboardPageConfigCard, DashboardPageGetCardDataResult, DashboardPageGetCardDataInput, getNestedTablePageConfigByTablePageNestedTableKey, findNameLikeColumns, getNestedTablePageConfigByTablePageNestedTableKeyAndVerify, type SearchableRelatedColumn } from "@kottster/common";
 import { KottsterApp } from "../core/app";
 import { CachingService } from "../services/caching.service";
 import { Readable } from "stream";
@@ -214,10 +214,57 @@ export abstract class DataSourceAdapter {
   abstract prepareRecordValueBeforeUpsert(value: any, columnSchema: RelationalDatabaseSchemaColumn): Promise<any>;
 
   /**
-   * Get the search builder that will apply the search query
-   * @returns The search builder
+   * Apply the search condition to the query builder based on the filter item and column reference
    */
-  abstract getSearchBuilder(searchableColumns: string[], searchValue: string, tableSchema: RelationalDatabaseSchemaTable): (builder: Knex.QueryBuilder) => void;
+  abstract applySearchCondition(
+      builder: Knex.QueryBuilder,
+      columnReference: string,
+      columnSchema: RelationalDatabaseSchemaColumn,
+      searchValue: string,
+      useAndOperator?: boolean,
+  ): void;
+
+  /**
+   * Create a search query builder function for the given searchable columns, search value, main table and database schema
+   *
+   * @param searchableColumns
+   * @param searchableRelatedColumns
+   * @param searchValue
+   * @param mainTable
+   * @param databaseSchema
+   */
+
+  createSearchBuilder(searchableColumns: string[], searchableRelatedColumns: SearchableRelatedColumn[], searchValue: string, mainTable: string, databaseSchema: RelationalDatabaseSchema) {
+
+    const getColumnSchema = (tableName: string, columnName: string): RelationalDatabaseSchemaColumn | undefined => {
+      return databaseSchema?.tables.find(t => t.name === tableName)?.columns.find(c => c.name === columnName);
+    }
+
+    return (builder: Knex.QueryBuilder) : void => {
+
+      builder.whereRaw('0 > 1');
+
+      // searchable columns of main table
+      searchableColumns.forEach((columnName) => {
+        const columnSchema = getColumnSchema(mainTable, columnName);
+        if (!columnSchema) return;
+
+        this.applySearchCondition(builder, `main.${columnName}`, columnSchema, searchValue, false);
+      });
+
+      // searchable columns of related tables
+      searchableRelatedColumns.forEach((colConfig) => {
+        builder.orWhereExists((qb) => {
+          qb.select(this.client.raw('1'))
+              .from(colConfig.targetTable)
+              .whereRaw(`main.${colConfig.column} = ${colConfig.targetTable}.${colConfig.targetForeignKeyColumn}`);
+          this.applySearchCondition(qb, `${colConfig.targetTable}.${colConfig.targetColumn}`, getColumnSchema(colConfig.targetTable, colConfig.targetColumn)!, searchValue, true);
+          return qb
+        })
+      });
+
+    }
+  }
 
   /**
    * Apply the filters to the query
@@ -336,7 +383,7 @@ export abstract class DataSourceAdapter {
       ? rootTablePageConfig 
       : getNestedTablePageConfigByTablePageNestedTableKeyAndVerify(rootTablePageConfig, input.nestedTableKey, databaseSchema);
 
-    const { 
+    const {
       tableSchema, 
       tablePageProcessedConfig,
     } = getTableData({ tablePageConfig, databaseSchema });
@@ -400,10 +447,18 @@ export abstract class DataSourceAdapter {
 
     // Search
     if (input.search) {
+
       const searchValue = input.search.trim();
-      if (tablePageProcessedConfig.searchableColumns?.length > 0) {
-        query.where(this.getSearchBuilder(tablePageProcessedConfig.searchableColumns, searchValue, tableSchema as RelationalDatabaseSchemaTable));
-        countQuery.where(this.getSearchBuilder(tablePageProcessedConfig.searchableColumns, searchValue, tableSchema as RelationalDatabaseSchemaTable));
+
+      if (tablePageProcessedConfig.searchableColumns?.length > 0 || tablePageProcessedConfig.searchableRelatedColumns?.length > 0) {
+        const searchQueryBuilder = this.createSearchBuilder(
+            tablePageProcessedConfig?.searchableColumns ?? [],
+            tablePageProcessedConfig?.searchableRelatedColumns ?? [],
+            searchValue,
+            tableSchema.name,
+            databaseSchema)
+        query.where(searchQueryBuilder)
+        countQuery?.where(searchQueryBuilder)
       }
     }
 
@@ -745,7 +800,7 @@ export abstract class DataSourceAdapter {
         if (relationship.targetTableForeignKeyColumn) {
           await Promise.all(
             foreignKeyValues.map(async keyValue => {
-              const recordForeignRecords = await this.client(relationship.targetTable)
+              const recordForeignRecords = await this.client(relationship.targetTable as string)
                 .count({ count: '*' })
                 .where(relationship.targetTableForeignKeyColumn!, keyValue);
 

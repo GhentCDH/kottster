@@ -51,7 +51,18 @@ export interface TablePageConfigColumn {
   
   /** If the column is a foreign key, this specifies the column in the related table to be displayed as the label */
   relationshipPreviewColumns?: string[];
-  
+
+  /**
+   * Columns from the related (foreign key) table to include in the global text search.
+   * The related table is resolved via the column's detected one-to-one relationship.
+   * When a search value is present, these columns are LEFT-JOINed into the main query.
+   *
+   * @example
+   * // Makes owner.firstname and owner.lastname searchable when searching records
+   * { column: 'owner_id', relationshipSearchColumns: ['firstname', 'lastname'] }
+   */
+  relationshipSearchColumns?: string[];
+
   /** Position of the column in the table */
   position?: number;
 

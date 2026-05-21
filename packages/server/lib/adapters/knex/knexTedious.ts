@@ -1,4 +1,4 @@
-import { DataSourceAdapterType, FilterItem, FilterItemOperator, FieldInput, isIsoString, JsType, mssqlBaseTypesByContentHint, mssqlBaseTypeToJsType, RelationalDatabaseSchema, RelationalDatabaseSchemaColumn, removeTrailingZeros, MssqlBaseType, ContentHint, RelationalDatabaseSchemaTable } from "@kottster/common";
+import { DataSourceAdapterType, FilterItem, FilterItemOperator, FieldInput, isIsoString, JsType, mssqlBaseTypesByContentHint, mssqlBaseTypeToJsType, RelationalDatabaseSchema, RelationalDatabaseSchemaColumn, removeTrailingZeros, MssqlBaseType, ContentHint } from "@kottster/common";
 import { DataSourceAdapter } from "../../models/dataSourceAdapter.model";
 import { Knex } from "knex";
 
@@ -195,18 +195,20 @@ export class KnexTedious extends DataSourceAdapter {
     return value;
   }
 
-  getSearchBuilder(searchableColumns: string[], searchValue: string, tableSchema: RelationalDatabaseSchemaTable) {
+  applySearchCondition(
+      builder: Knex.QueryBuilder,
+      columnReference: string,
+      columnSchema: RelationalDatabaseSchemaColumn,
+      searchValue: string,
+      useAndOperator: boolean = false
+  ) {
     const finalSearchValue = searchValue.toLowerCase();
 
-    return (builder: Knex.QueryBuilder) => {
-      searchableColumns.forEach((column, index) => {
-        if (index === 0) {
-          builder.whereRaw(`LOWER(${column}) LIKE ?`, [`%${finalSearchValue}%`]);
-        } else {
-          builder.orWhereRaw(`LOWER(${column}) LIKE ?`, [`%${finalSearchValue}%`]);
-        }
-      });
-    };
+    if (useAndOperator) {
+      builder.whereRaw(`LOWER(${columnReference}) LIKE ?`, [`%${finalSearchValue}%`]);
+    } else {
+      builder.orWhereRaw(`LOWER(${columnReference}) LIKE ?`, [`%${finalSearchValue}%`]);
+    }
   }
 
   applyFilterCondition(

@@ -7,6 +7,7 @@
   "scripts": {
     "clean": "rimraf ./dist",
     "build": "pnpm run clean && tsc",
+    "watch": "tsc --watch",
     "lint": "npx eslint ./lib",
     "test": "jest",
     "prepare": "husky",
