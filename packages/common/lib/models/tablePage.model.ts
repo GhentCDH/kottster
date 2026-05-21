@@ -58,8 +58,8 @@ export interface TablePageConfigColumn {
    * When a search value is present, these columns are LEFT-JOINed into the main query.
    *
    * @example
-   * // Makes plaats.kloeke_code and plaats.naam searchable when searching opname rows
-   * { column: 'plaats_id', relationshipSearchColumns: ['kloeke_code', 'naam'] }
+   * // Makes owner.firstname and owner.lastname searchable when searching records
+   * { column: 'owner_id', relationshipSearchColumns: ['firstname', 'lastname'] }
    */
   relationshipSearchColumns?: string[];
 
