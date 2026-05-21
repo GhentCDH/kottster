@@ -1,0 +1,67 @@
+name: Publish packages
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch:
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build
+        run: pnpm build
+
+      - name: Publish @ghentcdh/kottster-common
+        run: |
+          mkdir -p /tmp/common-publish
+          cp -r packages/common/dist /tmp/common-publish/dist
+          node -e "
+            const fs = require('fs');
+            const pkg = JSON.parse(fs.readFileSync('packages/common/package.json', 'utf8'));
+            pkg.name = '@ghentcdh/kottster-common';
+            delete pkg.scripts;
+            delete pkg.devDependencies;
+            fs.writeFileSync('/tmp/common-publish/package.json', JSON.stringify(pkg, null, 2));
+          "
+          cd /tmp/common-publish && npm publish --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Publish @ghentcdh/kottster-server
+        run: |
+          mkdir -p /tmp/server-publish
+          cp -r packages/server/dist /tmp/server-publish/dist
+          node -e "
+            const fs = require('fs');
+            const commonVersion = JSON.parse(fs.readFileSync('packages/common/package.json', 'utf8')).version;
+            const pkg = JSON.parse(fs.readFileSync('packages/server/package.json', 'utf8'));
+            pkg.name = '@ghentcdh/kottster-server';
+            delete pkg.scripts;
+            if (pkg.devDependencies) {
+              Object.keys(pkg.devDependencies).forEach(k => {
+                if (pkg.devDependencies[k] === 'workspace:*') {
+                  pkg.devDependencies[k] = '^' + commonVersion;
+                }
+              });
+            }
+            fs.writeFileSync('/tmp/server-publish/package.json', JSON.stringify(pkg, null, 2));
+          "
+          cd /tmp/server-publish && npm publish --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
